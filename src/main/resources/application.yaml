@@ -1,3 +1,41 @@
 spring:
   application:
     name: SecurityAdvance
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+
+jwt:
+  expiration: ${JWT_EXPIRATION:3600000}
+  expiration-refresh-token: ${JWT_REFRESH_EXPIRATION:259200000}
+  secretKey: ${JWT_SECRET}
+
+# RSA Configuration
+rsa:
+  keystore:
+    path: ${RSA_KEYSTORE_PATH}
+    password: ${RSA_KEYSTORE_PASSWORD}
+  key:
+    alias: ${RSA_KEY_ALIAS}
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+api:
+  prefix: /api/v1
+
+openapi:
+  service:
+    title: API Service
+    version: v1.0.0
+    description: Security API Service Document
+    serverUrl: http://localhost:8080
+    serverName: Server Test
