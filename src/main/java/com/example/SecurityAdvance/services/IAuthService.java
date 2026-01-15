@@ -1,0 +1,8 @@
+package com.example.SecurityAdvance.services;
+
+import com.example.SecurityAdvance.dtos.request.UserRegisterRequest;
+import com.example.SecurityAdvance.dtos.response.UserResponse;
+
+public interface IAuthService {
+    UserResponse register(UserRegisterRequest request);
+}
