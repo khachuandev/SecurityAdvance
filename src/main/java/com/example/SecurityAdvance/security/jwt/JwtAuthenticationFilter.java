@@ -80,7 +80,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Pair.of(String.format("%s/auth/register", apiPrefix), "POST"),
                 Pair.of(String.format("%s/auth/refresh-token", apiPrefix), "POST"),
                 Pair.of(String.format("%s/auth/verify-email", apiPrefix), "GET"),
-                Pair.of(String.format("%s/auth/resend-verification-token", apiPrefix), "GET"),
+                Pair.of(String.format("%s/auth/resend-verification", apiPrefix), "GET"),
                 Pair.of("/v3/api-docs/.*", "GET"),
                 Pair.of("/swagger-ui/.*", "GET"),
                 Pair.of("/swagger-ui.html", "GET")

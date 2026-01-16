@@ -18,6 +18,10 @@ public class EncryptionKey {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * Mỗi key thuộc về 1 user
+     * 1 user có thể có nhiều key (rotate)
+     */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -25,11 +29,14 @@ public class EncryptionKey {
     @Column(name = "key_name", nullable = false, length = 100)
     private String keyName; // ví dụ: USER_PII_KEY
 
-    @Column(name = "encrypted_key", nullable = false, columnDefinition = "TEXT")
-    private String encryptedKey; // DEK wrapped
+    @Column(name = "encrypted_dek", nullable = false, columnDefinition = "TEXT")
+    private String encryptedDek; // DEK wrapped
+
+    @Column(name = "encrypted_kek", nullable = false, columnDefinition = "TEXT")
+    private String encryptedKek; // DEK wrapped
 
     @Column(nullable = false, length = 64)
-    private String iv;
+    private String keyIv;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 25)

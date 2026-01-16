@@ -25,7 +25,7 @@ public class EmailService implements IEmailService {
         try {
             sendVerificationEmail(user, verificationUrl);
         } catch (MessagingException | UnsupportedEncodingException e) {
-            log.error("Error sending verification email to {}: {}", user.getEmail(), e.getMessage());
+            log.error("Send verification email failed. userId={}, email={}", user.getId(), user.getEmail(), e);
             throw new RuntimeException("Failed to send verification email", e);
         }
     }

@@ -11,6 +11,24 @@ spring:
     hibernate:
       ddl-auto: update
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: huan12a2002@gmail.com
+    password: azhz phbc tiue bkiy
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 60000
+
 jwt:
   expiration: ${JWT_EXPIRATION:3600000}
   expiration-refresh-token: ${JWT_REFRESH_EXPIRATION:259200000}
