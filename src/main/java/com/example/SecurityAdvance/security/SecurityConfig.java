@@ -56,7 +56,7 @@ public class SecurityConfig {
                                 String.format("%s/auth/login", apiPrefix),
                                 String.format("%s/auth/refresh-token", apiPrefix),
                                 String.format("%s/auth/verify-email", apiPrefix),
-                                String.format("%s/auth/resend-verification-token", apiPrefix),
+                                String.format("%s/auth/resend-verification", apiPrefix),
 
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",

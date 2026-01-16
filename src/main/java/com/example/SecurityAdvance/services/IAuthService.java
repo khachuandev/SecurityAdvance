@@ -5,4 +5,6 @@ import com.example.SecurityAdvance.dtos.response.UserResponse;
 
 public interface IAuthService {
     UserResponse register(UserRegisterRequest request);
+    void verifyEmail(String token);
+    void resendVerificationEmail(String email, String applicationUrl);
 }

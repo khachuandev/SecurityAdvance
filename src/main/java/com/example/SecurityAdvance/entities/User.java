@@ -28,24 +28,17 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false, unique = true)
     private String email;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String phoneNumber;
 
     @Column(nullable = false, unique = true, length = 64)
-    private String emailHash;
-
-    @Column(nullable = false, unique = true, length = 64)
     private String phoneHash;
 
     @Column(name = "data_iv", nullable = false, length = 64)
     private String dataIv;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "encryption_key_id")
-    private EncryptionKey activeEncryptionKey;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<UserRole> userRoles = new HashSet<>();
@@ -66,6 +59,7 @@ public class User {
     @PrePersist
     protected void onCreate() {
         this.createdAt = Instant.now();
+        this.updatedAt = Instant.now();
         this.status = this.status == null ? UserStatus.ACTIVE : this.status;
     }
 

@@ -6,24 +6,35 @@ import com.example.SecurityAdvance.entities.EncryptionKey;
 import com.example.SecurityAdvance.entities.User;
 import com.example.SecurityAdvance.enums.EncryptionKeyStatus;
 import com.example.SecurityAdvance.enums.UserStatus;
+import com.example.SecurityAdvance.exceptions.EmailAlreadyVerifiedException;
+import com.example.SecurityAdvance.exceptions.TokenExpiredException;
+import com.example.SecurityAdvance.exceptions.UserNotFoundException;
 import com.example.SecurityAdvance.repositories.EncryptionKeyRepository;
 import com.example.SecurityAdvance.repositories.UserRepository;
 import com.example.SecurityAdvance.services.IAuthService;
+import com.example.SecurityAdvance.services.IEmailService;
+import com.example.SecurityAdvance.services.IRedisService;
 import com.example.SecurityAdvance.utils.AESUtils;
 import com.example.SecurityAdvance.utils.HashUtils;
 import com.example.SecurityAdvance.utils.RSAUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.SecretKey;
 import java.util.Base64;
+import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService implements IAuthService {
     private final UserRepository userRepository;
     private final EncryptionKeyRepository encryptionKeyRepository;
+    private final IRedisService redisService;
+    private final IEmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final HashUtils hashUtils;
     private final AESUtils aesUtils;
@@ -89,5 +100,68 @@ public class AuthService implements IAuthService {
                 .status(user.getStatus())
                 .createdAt(user.getCreatedAt())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void verifyEmail(String token) {
+        if (!redisService.isTokenValid(token)) {
+            throw new TokenExpiredException();
+        }
+
+        Long userId = redisService.getUserIdByToken(token);
+        if (userId == null) {
+            throw new TokenExpiredException();
+        }
+
+        // 3. Lấy user
+        User user = userRepository.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
+
+        if(user.getStatus() == UserStatus.ACTIVE) {
+            throw new EmailAlreadyVerifiedException();
+        }
+
+        user.setStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        redisService.deleteToken(token);
+    }
+
+    @Override
+    public void resendVerificationEmail(String email, String appUrl) {
+        log.info("Resend verification email request for: {}", email);
+
+        try {
+            // 1. Tìm user
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("Email không tồn tại"));
+
+            log.info("Found user: id={}, status={}", user.getId(), user.getStatus());
+
+            // 2. Kiểm tra trạng thái
+            if (user.getStatus() == UserStatus.ACTIVE) {
+                throw new IllegalStateException("Email đã được xác thực");
+            }
+
+            // 3. Xóa token cũ
+            log.info("Deleting old tokens for user: {}", user.getId());
+            redisService.deleteAllUserTokens(user.getId());
+
+            // 4. Tạo token mới
+            String verificationToken = UUID.randomUUID().toString();
+            log.info("Generated new token: {}", verificationToken);
+            redisService.saveVerificationToken(verificationToken, user.getId());
+
+            // 5. Gửi email
+            String verificationUrl = appUrl + "/api/v1/auth/verify-email?token=" + verificationToken;
+            log.info("Sending verification email to: {}", user.getEmail());
+            emailService.sendVerificationEmailAsync(user, verificationUrl);
+
+            log.info("Resend verification email completed successfully");
+        } catch (Exception e) {
+            log.error("Error in resendVerificationEmail: ", e);
+            throw e;
+        }
     }
 }

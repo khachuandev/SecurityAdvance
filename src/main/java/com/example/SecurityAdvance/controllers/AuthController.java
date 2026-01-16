@@ -10,10 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -29,6 +26,19 @@ public class AuthController {
         String appUrl = getApplicationUrl(httpRequest);
         eventPublisher.publishEvent(new RegistrationEvent(newUser.getId(), appUrl));
         return ResponseEntity.ok(ApiRes.created(newUser));
+    }
+
+    @GetMapping("/verify-email")
+    public ResponseEntity<ApiRes<String>> verifyEmail(@RequestParam("token") String token) {
+        authService.verifyEmail(token);
+        return ResponseEntity.ok(ApiRes.success("Email verified successfully"));
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<ApiRes<String>> resendEmail(@RequestParam String email, HttpServletRequest httpRequest) {
+        String appUrl = getApplicationUrl(httpRequest);
+        authService.resendVerificationEmail(email, appUrl);
+        return ResponseEntity.ok(ApiRes.success("Verification email has been resent. Please check your inbox."));
     }
 
     private String getApplicationUrl(HttpServletRequest request) {
