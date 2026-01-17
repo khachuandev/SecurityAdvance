@@ -41,6 +41,7 @@ public class User {
     private String dataIv;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private Set<UserRole> userRoles = new HashSet<>();
 
     @Enumerated(EnumType.STRING)
@@ -66,5 +67,13 @@ public class User {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = Instant.now();
+    }
+
+    public void addRole(Role role){
+        UserRole userRole = UserRole.builder()
+                .user(this)
+                .role(role)
+                .build();
+        this.userRoles.add(userRole);
     }
 }

@@ -1,8 +1,12 @@
 package com.example.SecurityAdvance.services.impl;
 
+import com.example.SecurityAdvance.dtos.request.UserLoginDto;
 import com.example.SecurityAdvance.dtos.request.UserRegisterRequest;
+import com.example.SecurityAdvance.dtos.response.LoginResponse;
+import com.example.SecurityAdvance.dtos.response.UserInfoResponse;
 import com.example.SecurityAdvance.dtos.response.UserResponse;
 import com.example.SecurityAdvance.entities.EncryptionKey;
+import com.example.SecurityAdvance.entities.Role;
 import com.example.SecurityAdvance.entities.User;
 import com.example.SecurityAdvance.enums.EncryptionKeyStatus;
 import com.example.SecurityAdvance.enums.UserStatus;
@@ -10,7 +14,11 @@ import com.example.SecurityAdvance.exceptions.EmailAlreadyVerifiedException;
 import com.example.SecurityAdvance.exceptions.TokenExpiredException;
 import com.example.SecurityAdvance.exceptions.UserNotFoundException;
 import com.example.SecurityAdvance.repositories.EncryptionKeyRepository;
+import com.example.SecurityAdvance.repositories.RoleRepository;
 import com.example.SecurityAdvance.repositories.UserRepository;
+import com.example.SecurityAdvance.security.CustomUserDetails;
+import com.example.SecurityAdvance.security.CustomUserDetailsService;
+import com.example.SecurityAdvance.security.jwt.JwtTokenProvider;
 import com.example.SecurityAdvance.services.IAuthService;
 import com.example.SecurityAdvance.services.IEmailService;
 import com.example.SecurityAdvance.services.IRedisService;
@@ -19,6 +27,8 @@ import com.example.SecurityAdvance.utils.HashUtils;
 import com.example.SecurityAdvance.utils.RSAUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,21 +36,26 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.crypto.SecretKey;
 import java.util.Base64;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService implements IAuthService {
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final EncryptionKeyRepository encryptionKeyRepository;
     private final IRedisService redisService;
     private final IEmailService emailService;
+    private final CustomUserDetailsService customUserDetailsService;
+    private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final HashUtils hashUtils;
     private final AESUtils aesUtils;
     private final RSAUtils rsaUtils;
 
     @Override
+    @Transactional
     public UserResponse register(UserRegisterRequest request) {
         if (!request.getPassword().equals(request.getRetypePassword())) {
             throw new IllegalArgumentException("Password không khớp");
@@ -57,7 +72,7 @@ public class AuthService implements IAuthService {
         byte[] dataIv = aesUtils.generateIV();
         byte[] keyIv = aesUtils.generateIV();
 
-        /* ========== 2. ENCRYPT USER DATA ========== */
+        /* ========== 2. ENCRYPT PII ========== */
         String encryptedPhone = aesUtils.encrypt(request.getPhoneNumber(), dek, dataIv);
         String phoneHash = hashUtils.sha256(request.getPhoneNumber());
 
@@ -69,7 +84,7 @@ public class AuthService implements IAuthService {
         String kekBase64 = aesUtils.encodeKeyBase64(kek);
         String encryptedKek = rsaUtils.encryptAESKey(kekBase64);
 
-        /* ========== 5. SAVE USER ========== */
+        /* ========== 5. CREATE USER ========== */
         User user = User.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
@@ -80,9 +95,15 @@ public class AuthService implements IAuthService {
                 .status(UserStatus.PENDING_VERIFICATION)
                 .build();
 
+        /* ========== 6. Assign ROLE_USER ========== */
+        Role roleUser = roleRepository.findByName("USER")
+                .orElseThrow(() -> new IllegalStateException("ROLE_USER chưa tồn tại"));
+
+        user.addRole(roleUser);
+
         userRepository.save(user);
 
-        /* ========== 6. SAVE ENCRYPTION KEY ========== */
+        /* ========== 7. SAVE ENCRYPTION KEY ========== */
         EncryptionKey encryptionKey = EncryptionKey.builder()
                 .user(user)
                 .keyName("USER_PII_KEY")
@@ -163,5 +184,41 @@ public class AuthService implements IAuthService {
             log.error("Error in resendVerificationEmail: ", e);
             throw e;
         }
+    }
+
+    @Override
+    @Transactional
+    public LoginResponse login(UserLoginDto request) {
+        CustomUserDetails userDetails = (CustomUserDetails) customUserDetailsService
+                .loadUserByUsername(request.getUsername());
+
+        if(!passwordEncoder.matches(request.getPassword(), userDetails.getPassword())) {
+            throw new BadCredentialsException("Invalid username or password");
+        }
+
+        if (userDetails.getUser().getStatus() != UserStatus.ACTIVE) {
+            throw new IllegalStateException("Invalid user status");
+        }
+
+        String accessToken = jwtTokenProvider.generateToken(userDetails);
+        String refreshToken = UUID.randomUUID().toString();
+
+        UserInfoResponse user = UserInfoResponse.builder()
+                .id(userDetails.getUser().getId())
+                .username(userDetails.getUser().getUsername())
+                .email(userDetails.getUser().getEmail())
+                .roles(userDetails.getAuthorities().stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .collect(Collectors.toSet())
+                )
+                .status(UserStatus.ACTIVE)
+                .build();
+
+        return LoginResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .user(user)
+                .build();
     }
 }

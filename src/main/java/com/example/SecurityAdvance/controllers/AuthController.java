@@ -1,7 +1,9 @@
 package com.example.SecurityAdvance.controllers;
 
+import com.example.SecurityAdvance.dtos.request.UserLoginDto;
 import com.example.SecurityAdvance.dtos.request.UserRegisterRequest;
 import com.example.SecurityAdvance.dtos.response.ApiRes;
+import com.example.SecurityAdvance.dtos.response.LoginResponse;
 import com.example.SecurityAdvance.dtos.response.UserResponse;
 import com.example.SecurityAdvance.events.RegistrationEvent;
 import com.example.SecurityAdvance.services.IAuthService;
@@ -26,6 +28,12 @@ public class AuthController {
         String appUrl = getApplicationUrl(httpRequest);
         eventPublisher.publishEvent(new RegistrationEvent(newUser.getId(), appUrl));
         return ResponseEntity.ok(ApiRes.created(newUser));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<ApiRes<LoginResponse>> login(@Valid @RequestBody UserLoginDto request){
+        LoginResponse login = authService.login(request);
+        return ResponseEntity.ok(ApiRes.success(login));
     }
 
     @GetMapping("/verify-email")

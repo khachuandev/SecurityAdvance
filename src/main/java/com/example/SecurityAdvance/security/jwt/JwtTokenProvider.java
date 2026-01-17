@@ -45,7 +45,7 @@ public class JwtTokenProvider {
                 .setClaims(claims)
                 .setSubject(userDetails.getUsername())
                 .setIssuedAt(Date.from(now))
-                .setExpiration(java.util.Date.from(now.plusSeconds(expiration)))
+                .setExpiration(Date.from(now.plusSeconds(expiration)))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
 
