@@ -1,5 +1,6 @@
 package com.example.SecurityAdvance.services;
 
+import com.example.SecurityAdvance.dtos.request.RefreshTokenDto;
 import com.example.SecurityAdvance.dtos.request.UserLoginDto;
 import com.example.SecurityAdvance.dtos.request.UserRegisterRequest;
 import com.example.SecurityAdvance.dtos.response.LoginResponse;
@@ -10,4 +11,5 @@ public interface IAuthService {
     void verifyEmail(String token);
     void resendVerificationEmail(String email, String applicationUrl);
     LoginResponse login(UserLoginDto request);
+    LoginResponse refreshToken(RefreshTokenDto request);
 }

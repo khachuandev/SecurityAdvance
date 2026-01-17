@@ -54,9 +54,6 @@ public class User {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
-    @Column(name = "last_login")
-    private Instant lastLogin;
-
     @PrePersist
     protected void onCreate() {
         this.createdAt = Instant.now();

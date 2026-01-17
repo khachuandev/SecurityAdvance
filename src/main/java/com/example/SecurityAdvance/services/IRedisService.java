@@ -7,4 +7,8 @@ public interface IRedisService {
     boolean isTokenValid(String token);
     void deleteAllUserTokens(Long userId);
     Long getTokenTTL(String token);
+
+    void saveRefreshToken(String refreshToken, Long userId);
+    Long getUserIdByRefreshToken(String refreshToken);
+    void deleteRefreshToken(String refreshToken);
 }
