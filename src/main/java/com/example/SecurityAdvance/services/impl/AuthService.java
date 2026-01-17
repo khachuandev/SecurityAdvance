@@ -1,5 +1,6 @@
 package com.example.SecurityAdvance.services.impl;
 
+import com.example.SecurityAdvance.dtos.request.RefreshTokenDto;
 import com.example.SecurityAdvance.dtos.request.UserLoginDto;
 import com.example.SecurityAdvance.dtos.request.UserRegisterRequest;
 import com.example.SecurityAdvance.dtos.response.LoginResponse;
@@ -10,6 +11,7 @@ import com.example.SecurityAdvance.entities.Role;
 import com.example.SecurityAdvance.entities.User;
 import com.example.SecurityAdvance.enums.EncryptionKeyStatus;
 import com.example.SecurityAdvance.enums.UserStatus;
+import com.example.SecurityAdvance.exceptions.AppException;
 import com.example.SecurityAdvance.exceptions.EmailAlreadyVerifiedException;
 import com.example.SecurityAdvance.exceptions.TokenExpiredException;
 import com.example.SecurityAdvance.exceptions.UserNotFoundException;
@@ -27,6 +29,7 @@ import com.example.SecurityAdvance.utils.HashUtils;
 import com.example.SecurityAdvance.utils.RSAUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -63,7 +66,7 @@ public class AuthService implements IAuthService {
 
         // Check email tồn tại (plain text)
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalStateException("Email đã tồn tại");
+            throw new AppException("err.duplicate.email", HttpStatus.CONFLICT);
         }
 
         /* ========== 1. GEN KEYS ========== */
@@ -203,6 +206,8 @@ public class AuthService implements IAuthService {
         String accessToken = jwtTokenProvider.generateToken(userDetails);
         String refreshToken = UUID.randomUUID().toString();
 
+        redisService.saveRefreshToken(refreshToken, userDetails.getUser().getId());
+
         UserInfoResponse user = UserInfoResponse.builder()
                 .id(userDetails.getUser().getId())
                 .username(userDetails.getUser().getUsername())
@@ -219,6 +224,45 @@ public class AuthService implements IAuthService {
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .user(user)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LoginResponse refreshToken(RefreshTokenDto request) {
+        String oldRefreshToken = request.getRefreshToken();
+
+        Long userId = redisService.getUserIdByRefreshToken(oldRefreshToken);
+        if (userId == null) {
+            throw new BadCredentialsException("Invalid refresh token");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
+
+        CustomUserDetails userDetails = new CustomUserDetails(user);
+
+        String newAccessToken = jwtTokenProvider.generateToken(userDetails);
+        String newRefreshToken = UUID.randomUUID().toString();
+
+        redisService.deleteRefreshToken(oldRefreshToken);
+        redisService.saveRefreshToken(newRefreshToken, userId);
+
+        UserInfoResponse userInfo = UserInfoResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .roles(userDetails.getAuthorities().stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .collect(Collectors.toSet()))
+                .status(user.getStatus())
+                .build();
+
+        return LoginResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .tokenType("Bearer")
+                .user(userInfo)
                 .build();
     }
 }

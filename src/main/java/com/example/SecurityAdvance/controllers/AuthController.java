@@ -1,5 +1,6 @@
 package com.example.SecurityAdvance.controllers;
 
+import com.example.SecurityAdvance.dtos.request.RefreshTokenDto;
 import com.example.SecurityAdvance.dtos.request.UserLoginDto;
 import com.example.SecurityAdvance.dtos.request.UserRegisterRequest;
 import com.example.SecurityAdvance.dtos.response.ApiRes;
@@ -34,6 +35,12 @@ public class AuthController {
     public ResponseEntity<ApiRes<LoginResponse>> login(@Valid @RequestBody UserLoginDto request){
         LoginResponse login = authService.login(request);
         return ResponseEntity.ok(ApiRes.success(login));
+    }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<ApiRes<LoginResponse>> refreshToken(@Valid @RequestBody RefreshTokenDto request){
+        LoginResponse refreshToken = authService.refreshToken(request);
+        return ResponseEntity.ok(ApiRes.success(refreshToken));
     }
 
     @GetMapping("/verify-email")
